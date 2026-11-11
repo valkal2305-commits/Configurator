@@ -1,0 +1,14 @@
+{
+  "passed": [
+    "Navigation starts minimized and expands/collapses",
+    "Pan click selects profiles/modules; drag pans only, without geometry/history changes",
+    "Selection filters affect clicks and window/crossing, including underlying profile clicks",
+    "Locks stop mouse/keyboard/direct deletion and movement; Undo/Redo restores locks",
+    "Batch profile properties apply in one Undo; unsafe shortening is rejected atomically",
+    "Batch module CCT edits preserve output compatibility and one-step Undo",
+    "Full scenario roundtrip restores model, room, locks and selection filter",
+    "Invalid scenario is rejected before any model/room mutation",
+    "Scenario download, mobile minimized navigation and first-visit-only tour verified"
+  ],
+  "browser_errors": []
+}

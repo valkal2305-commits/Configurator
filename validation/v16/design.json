@@ -1,0 +1,137 @@
+{
+  "passed": [
+    "Customer toolbar has Ready compositions, LightLab, Advanced tools, and Email beside Export; floor plan removed",
+    "24 template/type combinations support explicit mixed modules, valid joints/blanks and atomic previews",
+    "UI chooses PD/ST90, mixed modules and a blank; Undo/Redo restores the installation and exact module choices",
+    "Oversized module choices produce a fit error and disable Apply without changing the drawing",
+    "Design-only scenario captures and Proposal PDF never open or export an unused LightLab",
+    "Project presentation exports a clean design-only document when LightLab and interactive 3D are unused",
+    "Independent Email prepares drawing and proposal PDFs with a customer message, then opens an unsent draft",
+    "Email drawing PDF and actual Export PDF have identical rendered pages and text",
+    "LightLab inclusion round-trips with projects, rejects invalid data atomically, and follows Clear/Undo",
+    "Mobile Advanced tools fits, first-visit tour stays dismissed and a new session does not inherit LightLab inclusion"
+  ],
+  "errors": [],
+  "templates": [
+    [
+      "surface",
+      "line",
+      3
+    ],
+    [
+      "surface",
+      "parallel",
+      6
+    ],
+    [
+      "surface",
+      "three",
+      9
+    ],
+    [
+      "surface",
+      "l",
+      6
+    ],
+    [
+      "surface",
+      "u",
+      9
+    ],
+    [
+      "surface",
+      "frame",
+      12
+    ],
+    [
+      "pendant",
+      "line",
+      3
+    ],
+    [
+      "pendant",
+      "parallel",
+      6
+    ],
+    [
+      "pendant",
+      "three",
+      9
+    ],
+    [
+      "pendant",
+      "l",
+      6
+    ],
+    [
+      "pendant",
+      "u",
+      9
+    ],
+    [
+      "pendant",
+      "frame",
+      12
+    ],
+    [
+      "recessed",
+      "line",
+      3
+    ],
+    [
+      "recessed",
+      "parallel",
+      6
+    ],
+    [
+      "recessed",
+      "three",
+      9
+    ],
+    [
+      "recessed",
+      "l",
+      6
+    ],
+    [
+      "recessed",
+      "u",
+      9
+    ],
+    [
+      "recessed",
+      "frame",
+      12
+    ],
+    [
+      "trimless",
+      "line",
+      3
+    ],
+    [
+      "trimless",
+      "parallel",
+      6
+    ],
+    [
+      "trimless",
+      "three",
+      9
+    ],
+    [
+      "trimless",
+      "l",
+      6
+    ],
+    [
+      "trimless",
+      "u",
+      9
+    ],
+    [
+      "trimless",
+      "frame",
+      12
+    ]
+  ]
+}

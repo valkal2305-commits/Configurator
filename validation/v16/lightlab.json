@@ -1,0 +1,17 @@
+{
+  "passed": [
+    "Without LightLab, presentation exports interactive luminaire geometry only, even with invalid unused room inputs",
+    "Luminaire-only file opens offline in 3D with model/top views and no room or calculation controls",
+    "Opening or navigating LightLab alone does not enable exports; editing a room dimension does",
+    "Legacy office scenario recognizes configured LightLab and retains the exact LDT lux/UGR reference calculation",
+    "Mixed A/B exports include LightLab only for B; its room/UGR PDF section appears once and the current project is restored",
+    "Mixed presentation switches cleanly between luminaire-only and LightLab room/map controls on desktop and mobile",
+    "Lights off/on, zero-output analysis, explicit LightLab exclusion and separate luminaire view remain correct"
+  ],
+  "errors": [],
+  "reference": {
+    "lux": 83.1577150108542,
+    "ugr": 13.402261000565375,
+    "lm": 387.215330855053
+  }
+}

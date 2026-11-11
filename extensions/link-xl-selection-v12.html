@@ -1,0 +1,120 @@
+<script id="linkXLModuleSelection">
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id),nativeBar=placeSelBar,nativeDrawBox=drawGroupBox,nativeBarAction=selBarAction,nativePaste=pastePart,nativeRotate=rotateSelected,nativeGroup=groupSelection;
+const supported=()=>designSelectionIds().filter(id=>isPC(id)||itemKind(id)==='module');
+const custom=ids=>ids.length>1&&ids.some(id=>itemKind(id)==='module');
+const currentGeometry=()=>JSON.parse(snapshot());
+function restoreGeometry(s){state.profiles=s.p;state.corners=s.c;state.endcaps=s.e||[];state.modules=s.m||[];state.blanks=s.b||[];state.groups=s.g||[];state.measures=s.ms||[];state.seq=s.seq;state.selectedId=s.sel;state.multi=s.selm||[];}
+function sameRun(ids){const cache=buildRuns(),worlds=ids.map(id=>findModule(id)).filter(Boolean).map(m=>moduleWorld(m,cache));return worlds.length===ids.length&&worlds.every(w=>w&&w.run===worlds[0].run);}
+placeSelBar=function(){
+ const ids=supported();if(!custom(ids))return nativeBar();
+ const bar=selBarNode();if(renaming||modHeld||state.measureMode||editingId!=null||drag||scene.classList.contains('nav-panning')){bar.style.display='none';selBarSig='';return;}
+ const box=designBounds(ids);if(!box)return;const ic=sbIcons(),btn=(action,icon,text)=>`<button type="button" data-a="${action}" title="${text} the selected items"><svg viewBox="0 0 24 24" aria-hidden="true">${ic[icon]}</svg><span>${text}</span></button>`;
+ const sig='design:'+ids.join(',');if(selBarSig!==sig){bar.innerHTML=`<span class="sb-cnt">${ids.length} selected</span><i class="sep"></i>`+(ids.every(id=>itemKind(id)==='module')&&sameRun(ids)?'<button type="button" data-a="design-arrange" title="Arrange modules on the same run">Arrange</button>':'')+btn('dup','dup','Duplicate')+btn('del','del','Delete');selBarSig=sig;}
+ bar.style.display='flex';const p=barSpot(bar.offsetWidth,bar.offsetHeight,mmToSx(box.x0),mmToSy(box.y0),mmToSx(box.x1),mmToSy(box.y1),26,18,ids);bar.style.left=p[0]+'px';bar.style.top=p[1]+'px';
+};
+drawGroupBox=function(){const ids=supported();if(!custom(ids))return nativeDrawBox();const b=designBounds(ids);if(!b)return;const g=el('g',{'pointer-events':'none'});g.appendChild(el('rect',{x:mmToSx(b.x0)-7,y:mmToSy(b.y0)-7,width:(b.x1-b.x0)*state.scale+14,height:(b.y1-b.y0)*state.scale+14,fill:'none',stroke:'var(--accent-deep)','stroke-width':1.2,'stroke-dasharray':'7 4',rx:5}));scene.appendChild(g);};
+rotateSelected=function(dir){if(supported().some(id=>itemKind(id)==='module')){toast('Modules follow their profiles. Select profiles / corners to rotate the assembly.');return;}return nativeRotate(dir);};
+groupSelection=function(){if(supported().some(id=>itemKind(id)==='module')){toast('Select profiles and corners to create a named group; their modules come with them.');return false;}return nativeGroup();};
+
+function modulePlans(ids,movingParents=new Set()){
+ const cache=buildRuns(),selected=new Set(ids),moving=new Set([...ids,...state.modules.filter(m=>movingParents.has(m.host)).map(m=>m.id),...state.blanks.filter(m=>movingParents.has(m.host)).map(m=>m.id)]),plans=[];
+ const limits={xmin:-Infinity,xmax:Infinity,ymin:-Infinity,ymax:Infinity};
+ for(const id of ids){const m=findModule(id),w=m&&moduleWorld(m,cache);if(!w)continue;const occ=runObstacles(w.run,null,cache).filter(o=>!moving.has(o.id));for(const member of w.run.members)if(movingParents.has(member.id))occ.push({start:member.start,len:member.len});let lo=w.run.origin-w.startAbs,hi=w.run.origin+w.run.length-w.startAbs-w.len;
+  for(const o of occ){if(o.start>=w.startAbs+w.len-.01)hi=Math.min(hi,o.start-w.startAbs-w.len);if(o.start+o.len<=w.startAbs+.01)lo=Math.max(lo,o.start+o.len-w.startAbs);}
+  if(lo>0||hi<0||lo>hi||occ.some(o=>o.start<w.startAbs+w.len-.01&&o.start+o.len>w.startAbs+.01))lo=hi=0;
+  const axis=w.run.orient==='H'?'x':'y';limits[axis+'min']=Math.max(limits[axis+'min'],lo);limits[axis+'max']=Math.min(limits[axis+'max'],hi);plans.push({id,run:w.run,start:w.startAbs,len:w.len});
+ }
+ return {plans,limits};
+}
+function applyMove(d,dx,dy){
+ for(const id of d.pc){const it=findItem(id);it.x=d.positions[id].x+dx;it.y=d.positions[id].y+dy;if(d.caps[id])syncCapsToProfile(it,d.caps[id]);}
+ for(const p of d.plans)rehostModule(findModule(p.id),p.run,p.start+(p.run.orient==='H'?dx:dy));
+}
+function startMove(e,ids,press){if(!canEditDesign(ids))return;
+ const r=scene.getBoundingClientRect(),sx=e.clientX-r.left,sy=e.clientY-r.top,pc=ids.filter(isPC),parents=new Set(pc),modules=ids.filter(id=>itemKind(id)==='module'),positions={},caps={},own=[];
+ const before=currentGeometry(),wasDirty=dirty,{plans,limits}=modulePlans(modules,parents);if(!pc.length){if(!plans.some(p=>p.run.orient==='H'))limits.xmin=limits.xmax=0;if(!plans.some(p=>p.run.orient==='V'))limits.ymin=limits.ymax=0;}
+ for(const id of pc){const it=findItem(id);positions[id]={x:it.x,y:it.y};if(itemKind(id)==='profile')caps[id]=capsOnProfile(it);for(const p of itemKind(id)==='profile'?profilePorts(it):cornerPorts(it))own.push({...p,owner:id});}
+ const targets=[];for(const it of [...state.profiles,...state.corners])if(!parents.has(it.id))targets.push(...(itemKind(it.id)==='profile'?profilePorts(it):cornerPorts(it)));
+ const freeOwn=own.filter(a=>!own.some(b=>b.owner!==a.owner&&Math.hypot(a.cx-b.cx,a.cy-b.cy)<1.2));
+ pushHistory();drag={mode:'selection-move',pointerId:e.pointerId,ids,pc,plans,limits,positions,caps,freeOwn,targets,obstacles:obstaclesExcept(parents),before,wasDirty,press,sx0:sx,sy0:sy,mx0:sxToMm(sx),my0:syToMm(sy),live:false,dx:0,dy:0,okDx:0,okDy:0,invalid:false};
+ try{scene.setPointerCapture(e.pointerId);}catch(_){}lastClickId=press;lastClickT=Date.now();render();
+}
+function moveSelection(e){
+ const d=drag,r=scene.getBoundingClientRect(),sx=e.clientX-r.left,sy=e.clientY-r.top;if(!d.live&&Math.hypot(sx-d.sx0,sy-d.sy0)<3)return;d.live=true;
+ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),rawX=sxToMm(sx)-d.mx0,rawY=syToMm(sy)-d.my0,l=d.limits;
+ let dx=clamp(d.pc.length?snap(rawX):rawX,l.xmin,l.xmax),dy=clamp(d.pc.length?snap(rawY):rawY,l.ymin,l.ymax),best=null,dist=20/state.scale;
+ for(const a of d.freeOwn)for(const t of d.targets){if(a.nx*t.nx+a.ny*t.ny>-.9)continue;const x=t.cx-a.cx,y=t.cy-a.cy,dd=Math.hypot(x-rawX,y-rawY);if(dd<dist&&x>=l.xmin&&x<=l.xmax&&y>=l.ymin&&y<=l.ymax){best=[x,y];dist=dd;}}
+ let valid=false;for(const [x,y]of best?[best,[dx,dy]]:[[dx,dy]]){applyMove(d,x,y);if(!groupHits(d.pc,d.obstacles)){dx=x;dy=y;valid=true;break;}}
+ if(!valid)applyMove(d,dx,dy);d.dx=dx;d.dy=dy;d.invalid=!valid;ghostGroup=valid?new Set():new Set(d.ids);if(valid){d.okDx=dx;d.okDy=dy;}render();
+}
+function finishMove(cancelled=false){
+ const d=drag;if(!d||d.mode!=='selection-move')return;drag=null;ghostGroup=new Set();try{scene.releasePointerCapture(d.pointerId);}catch(_){}
+ if(cancelled){restoreGeometry(d.before);dropHistoryStep();dirty=d.wasDirty;}
+ else{
+  if(d.invalid){applyMove(d,d.okDx,d.okDy);d.dx=d.okDx;d.dy=d.okDy;toast('Selection returned to its last free position.');}
+  const moved=Math.abs(d.dx)>1e-7||Math.abs(d.dy)>1e-7;
+  if(!moved){dropHistoryStep();dirty=d.wasDirty;if(!d.live&&findItem(d.press)){state.multi=[d.press];state.selectedId=d.press;}}
+  else{reflowModules();if(d.plans.some(p=>!findModule(p.id)||moduleHangs(findModule(p.id)))){restoreGeometry(d.before);dropHistoryStep();dirty=d.wasDirty;toast('That move would put a module outside its profile. Selection restored.');}else pruneBuriedCaps();}
+ }
+ syncUI();render();
+}
+scene.addEventListener('pointerdown',e=>{
+ if(e.button!==0||e.shiftKey||e.altKey||state.measureMode||window.LINKXLNavigation?.isPanning)return;
+ const ids=supported(),id=e.target.closest?.('g[data-id]')?.dataset.id;if(!custom(ids)||!id||!(ids.includes(id)||ids.includes(pcOf(id))))return;
+ if(id===lastClickId&&Date.now()-lastClickT<350)return;
+ e.preventDefault();e.stopImmediatePropagation();startMove(e,ids,id);
+},true);
+scene.addEventListener('pointermove',e=>{if(drag?.mode==='selection-move'){e.preventDefault();e.stopImmediatePropagation();moveSelection(e);}},true);
+for(const type of ['pointerup','pointercancel'])scene.addEventListener(type,e=>{if(drag?.mode==='selection-move'){e.preventDefault();e.stopImmediatePropagation();finishMove(type!=='pointerup');}},true);
+scene.addEventListener('lostpointercapture',()=>{if(drag?.mode==='selection-move')finishMove(true);});
+window.addEventListener('blur',()=>{if(drag?.mode==='selection-move')finishMove(true);});
+scene.addEventListener('wheel',e=>{if(drag?.mode==='selection-move'){e.preventDefault();e.stopImmediatePropagation();}},{capture:true,passive:false});
+
+function deleteSelection(){if(!canEditDesign(supported()))return;
+ const ids=supported(),set=new Set(ids),parents=new Set(ids.filter(id=>itemKind(id)==='profile')),caps=new Set();for(const id of parents)for(const c of capsOnProfile(findItem(id)))caps.add(c.cap.id);
+ pushHistory();state.modules=state.modules.filter(m=>!set.has(m.id)&&!parents.has(m.host));state.blanks=state.blanks.filter(m=>!parents.has(m.host));state.endcaps=state.endcaps.filter(c=>!caps.has(c.id));state.profiles=state.profiles.filter(p=>!set.has(p.id));state.corners=state.corners.filter(c=>!set.has(c.id));state.multi=[];state.selectedId=null;pruneGroups();reflowModules();renumberModuleTags();syncUI();render();toast(`${ids.length} selected items deleted · Ctrl+Z restores them.`);
+}
+function makeClipboard(){
+ const ids=supported(),parts=ids.filter(isPC).map(partData).filter(Boolean),whole={},cache=buildRuns(),groups=new Map();
+ for(const p of parts)if(p.grp)whole[p.grp]=groupMembers(p.grp).every(id=>ids.includes(id));
+ for(const id of ids.filter(id=>itemKind(id)==='module')){const m=findModule(id),w=moduleWorld(m,cache);if(!w)continue;let g=groups.get(w.run);if(!g){g={host:w.run.members[0].id,origin:w.run.origin,entries:[]};groups.set(w.run,g);}g.entries.push({data:moduleData(m),start:w.startAbs,len:w.len});}
+ for(const g of groups.values()){g.min=Math.min(...g.entries.map(e=>e.start));g.span=Math.max(...g.entries.map(e=>e.start+e.len))-g.min;for(const e of g.entries)e.offset=e.start-g.min;}
+ return {kind:'design-selection',type:TYPE,ids,parts,whole,moduleGroups:[...groups.values()]};
+}
+function copySelection(){partClipboard=makeClipboard();moduleClipboard=null;clipNoted();toast(`${partClipboard.ids.length} selected items copied · Ctrl+V pastes.`);}
+function placement(g,run,occ){
+ if(!run)return null;const desired=g.min+g.span,lo=run.origin,hi=run.origin+run.length-g.span;if(hi<lo)return null;
+ const candidates=[desired,lo,hi];for(const e of g.entries)for(const o of occ)candidates.push(o.start-e.offset-e.len,o.start+o.len-e.offset);
+ candidates.sort((a,b)=>Math.abs(a-desired)-Math.abs(b-desired));
+ return candidates.find(x=>x>=lo-.001&&x<=hi+.001&&g.entries.every(e=>!overlapsAny(x+e.offset,e.len,occ,.001)))??null;
+}
+function pasteSelection(clip,duplicate=false){
+ if(clip.type!==TYPE){toast('Switch to the copied installation type before pasting.');return false;}
+ const current=supported(),target=!duplicate&&current.length===1&&!clip.ids.includes(current[0])?runOfProfile(pcOf(current[0])):null,cache=buildRuns(),plans=[];
+ if(target&&clip.moduleGroups.length>1){toast('For a different destination, copy modules from one run at a time.');return false;}
+ for(const g of clip.moduleGroups){const run=target||runOfProfile(g.host,cache),occ=run?runObstacles(run,null,cache):[],base=placement(g,run,occ);if(run&&!canEditDesign(run.members.map(x=>x.id)))return false;if(base==null){toast('No free space for the copied modules in their destination profiles.');return false;}plans.push({g,run,base});}
+ if(clip.parts.length){const obstacles=obstaclesExcept(new Set()),free=x=>clip.parts.every(p=>partRects({...p.data,x:p.data.x+x,y:p.data.y+x},p.kind,isRTtype()).every(r=>!obstacles.some(o=>rectsOverlap(r,o))));if(!Array.from({length:40},(_,i)=>(i+1)*PASTE_STEP).some(free)){toast('No free space for the copied profiles / corners.');return false;}}
+ const before=currentGeometry(),wasDirty=dirty;pushHistory();const originalPush=pushHistory;pushHistory=()=>{};let newIds=[];
+ try{
+  if(clip.parts.length){placeGroupClip({kind:'group',parts:clip.parts,whole:clip.whole},'Selection copied');newIds=state.multi.slice();}
+  for(const {g,run,base}of plans)for(const e of g.entries){const m={...e.data,id:'m'+state.seq++,host:run.members[0].id,local:0,tag:nextModuleTag()};rehostModule(m,run,base+e.offset);state.modules.push(m);newIds.push(m.id);}
+  reflowBlanks();selectDesignIds(newIds);syncUI();render();toast(`${newIds.length} items ${duplicate?'duplicated':'pasted'} · Ctrl+Z restores.`);
+ }catch(error){restoreGeometry(before);pushHistory=originalPush;dropHistoryStep();dirty=wasDirty;syncUI();render();throw error;}finally{pushHistory=originalPush;}
+ return true;
+}
+pastePart=function(){if(partClipboard?.kind==='design-selection')return pasteSelection(partClipboard);return nativePaste();};
+selBarAction=function(a){if(custom(supported())){if(a==='dup')return pasteSelection(makeClipboard(),true);if(a==='del')return deleteSelection();if(a==='design-arrange')return openArrangeDialog();}return nativeBarAction(a);};
+function inDesign(){return !document.querySelector('dialog[open],.mod-overlay.show')&&!(document.getElementById('lxTour')&&!document.getElementById('lxTour').hidden)&&!window.LINKXL3D?.active;}
+window.addEventListener('keydown',e=>{
+ if(!inDesign()||e.target.closest?.('input,textarea,select,[contenteditable="true"]'))return;
+ if(drag?.mode==='selection-move'){if(e.key==='Escape')finishMove(true);if(!['Shift','Alt','Control','Meta'].includes(e.key)){e.preventDefault();e.stopImmediatePropagation();}return;}
+ const ids=supported(),ctrl=e.ctrlKey||e.metaKey;
+ if(custom(ids)&&((ctrl&&(isKey(e,'c')||isKey(e,'d')))||e.key==='Delete'||e.key==='Backspace')){e.preventDefault();e.stopImmediatePropagation();if(ctrl&&isKey(e,'c'))copySelection();else if(ctrl&&isKey(e,'d'))pasteSelection(makeClipboard(),true);else deleteSelection();return;}
+ if(ctrl&&isKey(e,'v')&&partClipboard?.kind==='design-selection'){e.preventDefault();e.stopImmediatePropagation();pasteSelection(partClipboard);}
+},true);
+window.LINKXLDesignSelection={ids:supported,bounds:()=>designBounds(supported()),get moving(){return drag?.mode==='selection-move';}};
+render();
+})();
+</script>

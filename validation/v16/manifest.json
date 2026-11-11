@@ -1,0 +1,19 @@
+{
+  "version": "v16",
+  "bytes": 3280133,
+  "sha256": "448c51dc9ba6e15e88af614bdb79d7de2ac04a4f6d8b75bb58d3d70f56fb4f80",
+  "passed_checks": 32,
+  "template_type_combinations": 24,
+  "browser_errors": [],
+  "catalog_unchanged": true,
+  "LightLab_reference": {
+    "lux": 83.1577150108542,
+    "ugr": 13.402261000565375,
+    "lm": 387.215330855053
+  },
+  "email_and_export_pdf_rendering_identical": true,
+  "mixed_AB_LightLab_gating": true,
+  "unused_LightLab_excluded_from_customer_documents": true,
+  "email": "Unsent email draft with fresh PDF downloads; attach manually or use supported native share",
+  "published": false
+}

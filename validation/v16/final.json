@@ -1,0 +1,11 @@
+{
+  "passed": [
+    "A 280 mm module and two explicit blank positions fit a 300 mm profile without artificial reserved-length errors",
+    "Email and Export stay together on the same row at desktop and mobile widths",
+    "Keyboard tab navigation works across the embedded Scenarios section",
+    "Proposal PDF still opens automatically above Advanced tools and Escape returns to the project",
+    "Optional contact removal covers the embedded PDF; an unused LightLab adds no lighting report",
+    "Presentation text is escaped, and Email clearly reports an empty attachment selection"
+  ],
+  "errors": []
+}

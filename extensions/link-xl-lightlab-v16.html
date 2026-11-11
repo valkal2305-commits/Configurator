@@ -1,0 +1,20 @@
+<style id="linkXLLightLabStyle">.lx-lab-project{padding:12px;border:1px solid #d9e0e5;border-radius:8px;margin:0 0 16px;font:12px/1.5 var(--sans);background:#f6f8f9}.lx-lab-project label{display:flex;gap:8px;align-items:center;font-weight:600}.lx-lab-project p{font-size:11px;color:#657581;margin:6px 0 0}</style>
+<script id="linkXLLightLab">
+(()=>{'use strict';
+const $=id=>document.getElementById(id);let enabled=false;
+const section=document.createElement('section');section.className='lx-lab-project';section.innerHTML='<label><input type="checkbox" id="lxLabIncluded"> Include LightLab in my project</label><p id="lxLabStatus"></p>';$('lxRoomForm').prepend(section);
+function sync(){ $('lxLabIncluded').checked=enabled;$('lxLabStatus').textContent=enabled?'Your LightLab room can be included in the proposal and presentation.':'LightLab is optional. Adjust the room or select the checkbox to include it in your project.';const no=!enabled;for(const id of ['lxRoomPDF','lxScenarioPDF']){const b=$(id);if(b)b.disabled=no;}window.dispatchEvent(new CustomEvent('linkxl-lightlab-change'));}
+function set(value){enabled=!!value;sync();}
+function usedEvent(e){if(!e.isTrusted||!$('lxRoom').open||LINKXL3D.getInfo().context!=='room'||window.LINKXLAdvanced?.busy||e.target.id==='lxLabIncluded')return;const id=e.target.closest('button')?.id||e.target.id;if(e.type==='input'||e.type==='change'||['lxLux','lxUgr','lxLights','lxDark','lxCenter','lxUgrPlace','lxPlaneEnabled','lxSaveRoom'].includes(id))set(true);}
+for(const event of ['input','change','click'])$('lxRoom').addEventListener(event,usedEvent);
+$('lxLabIncluded').onchange=()=>set($('lxLabIncluded').checked);
+function infer(room){if(!room)return false;const c=room.controls||{},u=room.ugr||{};return c.lxWidth!=='5'||c.lxLength!=='4'||c.lxHeight!=='2.8'||c.lxFurniture!=='empty'||Number(c.lxOffsetX)!==0||Number(c.lxOffsetY)!==0||room.plane?.enabled||Object.keys(room.library?.entries||{}).length>0||room.view?.luxOn||room.view?.ugrOn||u.background==='manual'||Number(u.additionalLb)>0;}
+function validate(v){if(!v||typeof v!=='object'||Array.isArray(v)||typeof v.enabled!=='boolean')throw new Error('Invalid LightLab project preference.');return {enabled:v.enabled};}
+window.LINKXLLightLab={get enabled(){return enabled;},set,validate,infer,exportState:()=>({enabled}),apply:value=>set(validate(value).enabled)};
+// Ordinary drawing files do not contain the room: never inherit a previous project's room export preference.
+const oldSnapshot=snapshot;snapshot=function(){const d=JSON.parse(oldSnapshot());d.ll=enabled;return JSON.stringify(d);};
+const oldUndo=undo;undo=function(){const d=history.length?JSON.parse(history[history.length-1]):null;const result=oldUndo();if(d)set(d.ll===true);return result;};
+const oldClear=clearAll;clearAll=function(){const result=oldClear.apply(this,arguments);if(!state.profiles.length&&!state.corners.length)set(false);return result;};
+sync();
+})();
+</script>
